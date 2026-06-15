@@ -157,6 +157,15 @@ async function handleCallback(req, res, next) {
     const sessionData = { fb_user_id, pages };
     setSession(sessionId, sessionData);
 
+    const pageSummary = pages.map(p => ({
+      page_id: p.page_id,
+      page_name: p.page_name,
+      has_access_token: !!p.page_access_token,
+      ig_business_account_id: p.ig_business_account_id,
+      ig_username: p.ig_username
+    }));
+    console.log(`[auth] Stored session: fb_user_id=${fb_user_id}, pageCount=${pages.length}, pages=${JSON.stringify(pageSummary)}`);
+
     // 6. Write secure, signed, httpOnly session cookie
     res.cookie("sessionId", sessionId, {
       signed: true,
