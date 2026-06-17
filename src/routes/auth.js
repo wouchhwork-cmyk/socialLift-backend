@@ -107,12 +107,14 @@ async function handleCallback(req, res, next) {
     }
 
     // 4. Fetch user's Pages
-    const pages = [];
+    let pages = [];
+    let fetchPathUsed = "accounts";
+
     try {
       console.log("[auth] Querying user accounts (/me/accounts)...");
       const accountsData = await graphRequest("/me/accounts", { accessToken: longLivedToken });
       
-      if (accountsData && Array.isArray(accountsData.data)) {
+      if (accountsData && Array.isArray(accountsData.data) && accountsData.data.length > 0) {
         for (const page of accountsData.data) {
           if (!page.id) continue;
 
@@ -147,9 +149,73 @@ async function handleCallback(req, res, next) {
             ig_username
           });
         }
+      } else {
+        // Fallback using debug_token and granular_scopes
+        fetchPathUsed = "granular_scopes fallback";
+        console.log("[auth] /me/accounts returned zero pages. Triggering granular_scopes debug_token fallback...");
+        
+        const debugTokenUrl = new URL(`https://graph.facebook.com/${config.GRAPH_API_VERSION}/debug_token`);
+        debugTokenUrl.searchParams.set("input_token", longLivedToken);
+        debugTokenUrl.searchParams.set("access_token", `${config.FB_APP_ID}|${config.FB_APP_SECRET}`);
+
+        const debugRes = await fetch(debugTokenUrl.toString());
+        const debugData = await debugRes.json();
+
+        if (!debugRes.ok) {
+          console.error("[auth] debug_token API request failed. Full Meta error:", JSON.stringify(debugData));
+          throw new Error("Failed to debug user access token during fallback lookup.");
+        }
+
+        const granularScopes = debugData?.data?.granular_scopes || [];
+        let targetPageIds = [];
+
+        // Find target_ids from pages_show_list, pages_messaging, or pages_read_engagement
+        const showListScope = granularScopes.find(s => s.scope === "pages_show_list");
+        if (showListScope && Array.isArray(showListScope.target_ids)) {
+          targetPageIds = showListScope.target_ids;
+        }
+
+        if (targetPageIds.length === 0) {
+          const messagingScope = granularScopes.find(s => s.scope === "pages_messaging");
+          if (messagingScope && Array.isArray(messagingScope.target_ids)) {
+            targetPageIds = messagingScope.target_ids;
+          }
+        }
+
+        if (targetPageIds.length === 0) {
+          const readEngageScope = granularScopes.find(s => s.scope === "pages_read_engagement");
+          if (readEngageScope && Array.isArray(readEngageScope.target_ids)) {
+            targetPageIds = readEngageScope.target_ids;
+          }
+        }
+
+        console.log(`[auth] Found ${targetPageIds.length} unique page IDs in debug_token granular_scopes.`);
+
+        // For each granted page ID, fetch details using the user access token
+        for (const pageId of targetPageIds) {
+          try {
+            console.log(`[auth] Querying page details for NPE page ID: ${pageId}`);
+            const pageDetails = await graphRequest(`/${pageId}`, {
+              accessToken: longLivedToken,
+              params: {
+                fields: "access_token,name,instagram_business_account{id,username}"
+              }
+            });
+
+            pages.push({
+              page_id: pageId,
+              page_name: pageDetails.name || "Unknown Page",
+              page_access_token: pageDetails.access_token || null,
+              ig_business_account_id: pageDetails.instagram_business_account?.id || null,
+              ig_username: pageDetails.instagram_business_account?.username || null
+            });
+          } catch (err) {
+            console.error(`[auth] Error fetching individual page details for ${pageId}:`, err.message || err);
+          }
+        }
       }
     } catch (err) {
-      console.error("[auth] Error querying /me/accounts:", err.message || err);
+      console.error("[auth] Error fetching user's pages in callback:", err.message || err);
     }
 
     // 5. Save data in in-memory session store
@@ -164,7 +230,7 @@ async function handleCallback(req, res, next) {
       ig_business_account_id: p.ig_business_account_id,
       ig_username: p.ig_username
     }));
-    console.log(`[auth] Stored session: fb_user_id=${fb_user_id}, pageCount=${pages.length}, pages=${JSON.stringify(pageSummary)}`);
+    console.log(`[auth] Stored session: fb_user_id=${fb_user_id}, pathUsed=${fetchPathUsed}, pageCount=${pages.length}, pages=${JSON.stringify(pageSummary)}`);
 
     // 6. Write secure, signed, httpOnly session cookie
     res.cookie("sessionId", sessionId, {
