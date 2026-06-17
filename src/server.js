@@ -17,7 +17,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 // Future Meta webhook routes must be registered before express.json()
 // so /webhooks/meta can use express.raw({ type: "application/json" }).
