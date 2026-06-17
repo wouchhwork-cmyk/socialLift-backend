@@ -25,6 +25,9 @@ app.use(cookieParser(config.SESSION_SECRET));
 import authRouter from "./routes/auth.js";
 app.use("/auth", authRouter);
 
+import meRouter from "./routes/me.js";
+app.use("/api", meRouter);
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
