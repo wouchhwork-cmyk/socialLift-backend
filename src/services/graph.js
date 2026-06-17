@@ -146,3 +146,13 @@ export async function sendMessage(recipientId, message, accessToken) {
     accessToken
   });
 }
+
+export async function subscribePageApp(pageId, accessToken, fields = ["messages", "messaging_postbacks", "feed", "mention"]) {
+  return graphRequest(`${pageId}/subscribed_apps`, {
+    method: "POST",
+    params: {
+      subscribed_fields: fields.join(",")
+    },
+    accessToken
+  });
+}

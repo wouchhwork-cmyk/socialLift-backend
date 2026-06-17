@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "lint": "node --check src/server.js src/config.js src/store.js src/services/graph.js src/routes/auth.js src/routes/me.js src/middleware/requireAuth.js src/routes/comments.js src/routes/messages.js"
+    "lint": "node --check src/server.js src/config.js src/store.js src/services/graph.js src/routes/auth.js src/routes/me.js src/middleware/requireAuth.js src/routes/comments.js src/routes/messages.js src/routes/webhooks.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

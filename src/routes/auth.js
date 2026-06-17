@@ -2,7 +2,7 @@ import express from "express";
 import crypto from "node:crypto";
 import { config } from "../config.js";
 import { setSession } from "../store.js";
-import { graphRequest } from "../services/graph.js";
+import { graphRequest, subscribePageApp } from "../services/graph.js";
 
 const router = express.Router();
 
@@ -216,6 +216,19 @@ async function handleCallback(req, res, next) {
       }
     } catch (err) {
       console.error("[auth] Error fetching user's pages in callback:", err.message || err);
+    }
+
+    // Subscribe all Pages to the app
+    for (const page of pages) {
+      if (page.page_id && page.page_access_token) {
+        try {
+          console.log(`[auth] Subscribing app to page ${page.page_id}...`);
+          await subscribePageApp(page.page_id, page.page_access_token);
+          console.log(`[auth] Successfully subscribed app to page ${page.page_id}`);
+        } catch (err) {
+          console.error(`[auth] Failed to subscribe app to page ${page.page_id}:`, err.message || err);
+        }
+      }
     }
 
     // 5. Save data in in-memory session store

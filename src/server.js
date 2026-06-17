@@ -18,6 +18,8 @@ app.use(
 // Future Meta webhook routes must be registered before express.json()
 // so /webhooks/meta can use express.raw({ type: "application/json" }).
 // Do not parse that webhook body as JSON before signature verification.
+import webhooksRouter from "./routes/webhooks.js";
+app.use("/webhooks/meta", express.raw({ type: "application/json" }), webhooksRouter);
 
 app.use(express.json());
 app.use(cookieParser(config.SESSION_SECRET));
