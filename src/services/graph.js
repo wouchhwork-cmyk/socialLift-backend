@@ -61,7 +61,10 @@ export async function graphRequest(path, options = {}) {
       path: url.pathname,
       error: data?.error
     });
-    throw new Error(`Meta Graph API request failed with status ${response.status}.`);
+    const err = new Error(`Meta Graph API request failed with status ${response.status}.`);
+    err.status = response.status;
+    err.metaError = data?.error;
+    throw err;
   }
 
   return data;
@@ -105,6 +108,40 @@ export async function listMentions(igAccountId, accessToken) {
   return graphRequest(`${igAccountId}/tags`, {
     params: {
       fields: "id,caption,media_type,media_url,permalink,timestamp,username,like_count,comments_count"
+    },
+    accessToken
+  });
+}
+
+export async function listConversations(pageId, accessToken) {
+  return graphRequest(`${pageId}/conversations`, {
+    params: {
+      platform: "instagram",
+      fields: "id,link,updated_time,participants"
+    },
+    accessToken
+  });
+}
+
+export async function listMessages(conversationId, accessToken) {
+  return graphRequest(`${conversationId}/messages`, {
+    params: {
+      fields: "id,message,created_time,from,to"
+    },
+    accessToken
+  });
+}
+
+export async function sendMessage(recipientId, message, accessToken) {
+  return graphRequest("me/messages", {
+    method: "POST",
+    body: {
+      recipient: {
+        id: recipientId
+      },
+      message: {
+        text: message
+      }
     },
     accessToken
   });

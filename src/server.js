@@ -31,6 +31,9 @@ app.use("/api", meRouter);
 import commentsRouter from "./routes/comments.js";
 app.use("/api", commentsRouter);
 
+import messagesRouter from "./routes/messages.js";
+app.use("/api", messagesRouter);
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
