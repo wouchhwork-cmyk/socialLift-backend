@@ -66,3 +66,46 @@ export async function graphRequest(path, options = {}) {
 
   return data;
 }
+
+export async function listMedia(igAccountId, accessToken) {
+  return graphRequest(`${igAccountId}/media`, {
+    params: {
+      fields: "id,caption,media_type,media_url,permalink,timestamp,username,like_count,comments_count"
+    },
+    accessToken
+  });
+}
+
+export async function listMediaComments(mediaId, accessToken) {
+  return graphRequest(`${mediaId}/comments`, {
+    params: {
+      fields: "id,text,timestamp,username,like_count,hidden"
+    },
+    accessToken
+  });
+}
+
+export async function replyToComment(commentId, message, accessToken) {
+  return graphRequest(`${commentId}/replies`, {
+    method: "POST",
+    params: { message },
+    accessToken
+  });
+}
+
+export async function hideComment(commentId, hide, accessToken) {
+  return graphRequest(`${commentId}`, {
+    method: "POST",
+    params: { hide: hide ? "true" : "false" },
+    accessToken
+  });
+}
+
+export async function listMentions(igAccountId, accessToken) {
+  return graphRequest(`${igAccountId}/tags`, {
+    params: {
+      fields: "id,caption,media_type,media_url,permalink,timestamp,username,like_count,comments_count"
+    },
+    accessToken
+  });
+}

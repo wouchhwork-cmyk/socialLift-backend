@@ -28,6 +28,9 @@ app.use("/auth", authRouter);
 import meRouter from "./routes/me.js";
 app.use("/api", meRouter);
 
+import commentsRouter from "./routes/comments.js";
+app.use("/api", commentsRouter);
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
