@@ -10,12 +10,15 @@ const router = express.Router();
 router.get("/facebook/login", (req, res) => {
   const state = crypto.randomBytes(16).toString("hex");
 
-  // Store state in a signed, httpOnly, Lax cookie for 5 minutes
+  // Store state in a signed, httpOnly, SameSite=None cookie for 5 minutes.
+  // SameSite=None + Secure is required for cross-origin credentialed flows
+  // (e.g. wouchh.com redirecting through the Railway backend and back).
   res.cookie("oauth_state", state, {
     signed: true,
     httpOnly: true,
+    secure: true,
     maxAge: 5 * 60 * 1000,
-    sameSite: "lax"
+    sameSite: "none"
   });
 
   // Build Facebook OAuth dialog URL using Login for Business config_id
@@ -245,12 +248,14 @@ async function handleCallback(req, res, next) {
     }));
     console.log(`[auth] Stored session: fb_user_id=${fb_user_id}, pathUsed=${fetchPathUsed}, pageCount=${pages.length}, pages=${JSON.stringify(pageSummary)}`);
 
-    // 6. Write secure, signed, httpOnly session cookie
+    // 6. Write secure, signed, httpOnly session cookie.
+    // SameSite=None + Secure is required so the cookie is sent on
+    // cross-origin API requests from wouchh.com to the Railway backend.
     res.cookie("sessionId", sessionId, {
       signed: true,
       httpOnly: true,
       secure: true,
-      sameSite: "lax"
+      sameSite: "none"
     });
 
     console.log(`[auth] Session created for FB User: ${fb_user_id}. Redirecting to dashboard.`);
