@@ -18,7 +18,8 @@ router.get("/facebook/login", (req, res) => {
     httpOnly: true,
     secure: true,
     maxAge: 5 * 60 * 1000,
-    sameSite: "none"
+    sameSite: "none",
+    path: "/"
   });
 
   // Build Facebook OAuth dialog URL using Login for Business config_id
@@ -51,7 +52,13 @@ async function handleCallback(req, res, next) {
     }
 
     // Clear the verification state cookie
-    res.clearCookie("oauth_state");
+    res.clearCookie("oauth_state", {
+      signed: true,
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/"
+    });
 
     if (!code) {
       return res.status(400).json({ error: "Authorization code is missing from callback." });
@@ -255,7 +262,8 @@ async function handleCallback(req, res, next) {
       signed: true,
       httpOnly: true,
       secure: true,
-      sameSite: "none"
+      sameSite: "none",
+      path: "/"
     });
 
     console.log(`[auth] Session created for FB User: ${fb_user_id}. Redirecting to dashboard.`);
