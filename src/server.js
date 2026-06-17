@@ -7,13 +7,17 @@ import { config } from "./config.js";
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(morgan("dev"));
-app.use(
-  cors({
-    origin: config.ALLOWED_ORIGIN,
-    credentials: true
-  })
-);
+
+const corsOptions = {
+  origin: config.ALLOWED_ORIGIN,
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Future Meta webhook routes must be registered before express.json()
 // so /webhooks/meta can use express.raw({ type: "application/json" }).
