@@ -13,10 +13,13 @@ app.use(morgan("dev"));
 
 const corsOptions = {
   origin: config.ALLOWED_ORIGIN,
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Future Meta webhook routes must be registered before express.json()
 // so /webhooks/meta can use express.raw({ type: "application/json" }).
@@ -49,5 +52,8 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(config.PORT, () => {
+  console.log("[auth] session cookie write name: sessionId");
+  console.log("[auth] session cookie read name: sessionId");
+  console.log(`[server] Allowed CORS origin: ${config.ALLOWED_ORIGIN}`);
   console.log(`[server] Listening at http://localhost:${config.PORT}`);
 });

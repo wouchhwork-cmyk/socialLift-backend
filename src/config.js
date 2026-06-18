@@ -36,7 +36,7 @@ export const config = {
   OAUTH_REDIRECT_URI: process.env.OAUTH_REDIRECT_URI,
   WEBHOOK_VERIFY_TOKEN: process.env.WEBHOOK_VERIFY_TOKEN,
   SESSION_SECRET: process.env.SESSION_SECRET,
-  ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
+  ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN.replace(/\/+$/, ""),
   PORT: port,
   FRONTEND_DASHBOARD_URL: process.env.FRONTEND_DASHBOARD_URL
 };
