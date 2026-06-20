@@ -49,11 +49,19 @@ export async function graphRequest(path, options = {}) {
     requestInit.body = JSON.stringify(body);
   }
 
-  console.log(`[graph] ${method} ${url.pathname}`);
+  // DEMO/DEBUG: log the full outbound Graph call (incl. access_token and
+  // appsecret_proof) and the full response, unmasked. Do not enable in prod.
+  console.log(`[graph] --> ${method} ${url.toString()}`);
+  if (body !== undefined) {
+    console.log("[graph] request body:", JSON.stringify(body, null, 2));
+  }
 
   const response = await fetch(url, requestInit);
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
+
+  console.log(`[graph] <-- ${response.status} ${method} ${url.pathname}`);
+  console.log("[graph] response data:", data !== null ? JSON.stringify(data, null, 2) : "(empty)");
 
   if (!response.ok) {
     console.error("[graph] Request failed", {

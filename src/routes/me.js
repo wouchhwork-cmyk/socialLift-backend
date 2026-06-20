@@ -24,13 +24,6 @@ router.get("/accounts", requireAuth, (req, res) => {
 // POST /api/logout
 router.post("/logout", requireAuth, (req, res) => {
   deleteSession(req.sessionId);
-  res.clearCookie("sessionId", {
-    signed: true,
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/"
-  });
   return res.json({ ok: true });
 });
 

@@ -1,26 +1,20 @@
 import express from "express";
-import crypto from "node:crypto";
 import { config } from "../config.js";
 import { setSession } from "../store.js";
 import { graphRequest, subscribePageApp } from "../services/graph.js";
 
 const router = express.Router();
 
-// GET /auth/facebook/login
+// GET /auth/facebook/login?state=<internal_system_user_id>
+// `state` is OUR internal system user id (not a Meta id), supplied by the client.
+// It is round-tripped through Meta's OAuth `state` param and then used as the
+// session key, so the client can identify its session on every later API call
+// without relying on cookies.
 router.get("/facebook/login", (req, res) => {
-  const state = crypto.randomBytes(16).toString("hex");
-
-  // Store state in a signed, httpOnly, SameSite=None cookie for 5 minutes.
-  // SameSite=None + Secure is required for cross-origin credentialed flows
-  // (e.g. wouchh.com redirecting through the Railway backend and back).
-  res.cookie("oauth_state", state, {
-    signed: true,
-    httpOnly: true,
-    secure: true,
-    maxAge: 5 * 60 * 1000,
-    sameSite: "none",
-    path: "/"
-  });
+  const state = typeof req.query.state === "string" ? req.query.state.trim() : "";
+  if (!state) {
+    return res.status(400).json({ error: "Missing state query parameter (internal system user id)." });
+  }
 
   // Build Facebook OAuth dialog URL using Login for Business config_id
   const oauthUrl = new URL(`https://www.facebook.com/${config.GRAPH_API_VERSION}/dialog/oauth`);
@@ -30,7 +24,7 @@ router.get("/facebook/login", (req, res) => {
   oauthUrl.searchParams.set("response_type", "code");
   oauthUrl.searchParams.set("state", state);
 
-  console.log(`[auth] Redirecting user to Facebook Login dialog...`);
+  console.log(`[auth] Redirecting user to Facebook Login dialog... (state=${state})`);
   return res.redirect(oauthUrl.toString());
 });
 
@@ -44,21 +38,12 @@ async function handleCallback(req, res, next) {
       return res.status(400).json({ error: "OAuth flow aborted by user or provider.", details: req.query.error_description });
     }
 
-    // Verify state to prevent CSRF
-    const cookieState = req.signedCookies.oauth_state;
-    if (!cookieState || cookieState !== state) {
-      console.error("[auth] State verification failed. Expected:", cookieState, "Received:", state);
-      return res.status(400).json({ error: "Security check failed: State mismatch. Please try again." });
+    // `state` is our internal system user id, echoed back by Meta. It becomes
+    // the session key, so it must be present.
+    if (!state) {
+      console.error("[auth] State missing from callback query.");
+      return res.status(400).json({ error: "Security check failed: missing state." });
     }
-
-    // Clear the verification state cookie
-    res.clearCookie("oauth_state", {
-      signed: true,
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/"
-    });
 
     if (!code) {
       return res.status(400).json({ error: "Authorization code is missing from callback." });
@@ -72,8 +57,10 @@ async function handleCallback(req, res, next) {
     tokenUrl.searchParams.set("code", code);
 
     console.log("[auth] Exchanging code for short-lived user access token...");
+    console.log(`[auth] --> GET ${tokenUrl.toString()}`);
     const shortLivedRes = await fetch(tokenUrl.toString());
     const shortLivedData = await shortLivedRes.json();
+    console.log(`[auth] <-- ${shortLivedRes.status} short-lived token response:`, JSON.stringify(shortLivedData, null, 2));
 
     if (!shortLivedRes.ok) {
       console.error("[auth] Short-lived token exchange failed. Full Meta error:", JSON.stringify(shortLivedData));
@@ -90,8 +77,10 @@ async function handleCallback(req, res, next) {
     longLivedUrl.searchParams.set("fb_exchange_token", shortLivedToken);
 
     console.log("[auth] Upgrading short-lived token to long-lived user access token...");
+    console.log(`[auth] --> GET ${longLivedUrl.toString()}`);
     const longLivedRes = await fetch(longLivedUrl.toString());
     const longLivedData = await longLivedRes.json();
+    console.log(`[auth] <-- ${longLivedRes.status} long-lived token response:`, JSON.stringify(longLivedData, null, 2));
 
     if (!longLivedRes.ok) {
       console.error("[auth] Long-lived token exchange failed. Full Meta error:", JSON.stringify(longLivedData));
@@ -168,8 +157,10 @@ async function handleCallback(req, res, next) {
         debugTokenUrl.searchParams.set("input_token", longLivedToken);
         debugTokenUrl.searchParams.set("access_token", `${config.FB_APP_ID}|${config.FB_APP_SECRET}`);
 
+        console.log(`[auth] --> GET ${debugTokenUrl.toString()}`);
         const debugRes = await fetch(debugTokenUrl.toString());
         const debugData = await debugRes.json();
+        console.log(`[auth] <-- ${debugRes.status} debug_token response:`, JSON.stringify(debugData, null, 2));
 
         if (!debugRes.ok) {
           console.error("[auth] debug_token API request failed. Full Meta error:", JSON.stringify(debugData));
@@ -241,8 +232,10 @@ async function handleCallback(req, res, next) {
       }
     }
 
-    // 5. Save data in in-memory session store
-    const sessionId = crypto.randomUUID();
+    // 5. Save data in in-memory session store, keyed by the internal system
+    // user id (state). The client already knows this id, so no cookie is set —
+    // it sends `state` as a param on every subsequent API call.
+    const sessionId = state;
     const sessionData = { fb_user_id, pages };
     setSession(sessionId, sessionData);
 
@@ -253,20 +246,9 @@ async function handleCallback(req, res, next) {
       ig_business_account_id: p.ig_business_account_id,
       ig_username: p.ig_username
     }));
-    console.log(`[auth] Stored session: fb_user_id=${fb_user_id}, pathUsed=${fetchPathUsed}, pageCount=${pages.length}, pages=${JSON.stringify(pageSummary)}`);
+    console.log(`[auth] Stored session: state=${sessionId}, fb_user_id=${fb_user_id}, pathUsed=${fetchPathUsed}, pageCount=${pages.length}, pages=${JSON.stringify(pageSummary)}`);
 
-    // 6. Write secure, signed, httpOnly session cookie.
-    // SameSite=None + Secure is required so the cookie is sent on
-    // cross-origin API requests from wouchh.com to the Railway backend.
-    res.cookie("sessionId", sessionId, {
-      signed: true,
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/"
-    });
-
-    console.log(`[auth] Session created for FB User: ${fb_user_id}. Redirecting to dashboard.`);
+    console.log(`[auth] Session created for FB User: ${fb_user_id} (state=${sessionId}). Redirecting to dashboard.`);
     return res.redirect(config.FRONTEND_DASHBOARD_URL);
 
   } catch (err) {
