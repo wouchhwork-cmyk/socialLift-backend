@@ -1,10 +1,19 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 
 import { config } from "./config.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+
+if (process.env.SERVE_FRONTEND) {
+  app.use(express.static(process.env.SERVE_FRONTEND));
+}
 
 app.set("trust proxy", 1);
 
@@ -78,6 +87,7 @@ app.use("/api", commentsRouter);
 
 import messagesRouter from "./routes/messages.js";
 app.use("/api", messagesRouter);
+
 
 app.get("/", (_req, res) => {
   res.json({ ok: true, service: "sociallift-backend" });

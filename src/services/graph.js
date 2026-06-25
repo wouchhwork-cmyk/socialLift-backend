@@ -164,3 +164,62 @@ export async function subscribePageApp(pageId, accessToken, fields = ["messages"
     accessToken
   });
 }
+
+export async function listPagePosts(pageId, accessToken) {
+  return graphRequest(`${pageId}/posts`, {
+    params: {
+      fields: "id,message,created_time,permalink_url"
+    },
+    accessToken
+  });
+}
+
+export async function listPagePostComments(postId, accessToken) {
+  return graphRequest(`${postId}/comments`, {
+    params: {
+      fields: "id,message,from,created_time"
+    },
+    accessToken
+  });
+}
+
+export async function listPagePostReactions(postId, accessToken) {
+  return graphRequest(`${postId}/reactions`, {
+    params: {
+      summary: "true"
+    },
+    accessToken
+  });
+}
+
+export async function getPageMetadata(pageId, accessToken) {
+  return graphRequest(`${pageId}`, {
+    params: {
+      fields: "name,category,fan_count,picture"
+    },
+    accessToken
+  });
+}
+
+export async function listPageSubscribedApps(pageId, accessToken) {
+  return graphRequest(`${pageId}/subscribed_apps`, {
+    accessToken
+  });
+}
+
+export async function replyToPageComment(commentId, message, accessToken) {
+  return graphRequest(`${commentId}/comments`, {
+    method: "POST",
+    params: { message },
+    accessToken
+  });
+}
+
+export async function hidePageComment(commentId, hide, accessToken) {
+  return graphRequest(`${commentId}`, {
+    method: "POST",
+    params: { is_hidden: hide },
+    accessToken
+  });
+}
+
