@@ -223,3 +223,12 @@ export async function hidePageComment(commentId, hide, accessToken) {
   });
 }
 
+export async function getInstagramAccountMetadata(igAccountId, accessToken) {
+  return graphRequest(`${igAccountId}`, {
+    params: {
+      fields: "username,name,profile_picture_url,followers_count,media_count"
+    },
+    accessToken
+  });
+}
+
