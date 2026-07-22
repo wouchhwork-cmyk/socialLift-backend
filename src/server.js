@@ -103,7 +103,11 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(config.PORT, () => {
-  console.log(`[server] CORS: allowing all origins`);
-  console.log(`[server] Listening on port ${config.PORT}`);
-});
+if (process.env.NODE_ENV !== "test" && !process.env.NETLIFY) {
+  app.listen(config.PORT, () => {
+    console.log(`[server] CORS: allowing all origins`);
+    console.log(`[server] Listening on port ${config.PORT}`);
+  });
+}
+
+export { app };
