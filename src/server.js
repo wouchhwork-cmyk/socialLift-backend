@@ -28,11 +28,14 @@ app.options("/{*any}", cors(corsOptions));
 // Future Meta webhook routes must be registered before express.json()
 // so /webhooks/meta can use express.raw({ type: "application/json" }).
 // Do not parse that webhook body as JSON before signature verification.
+// Helper to unwrap default exports when bundled to CommonJS by Netlify/esbuild
+const unwrap = (mod) => (mod && mod.default ? mod.default : mod);
+
 import webhooksRouter from "./routes/webhooks.js";
 app.use(
   "/webhooks/meta",
   express.raw({ type: "application/json" }),
-  webhooksRouter,
+  unwrap(webhooksRouter),
 );
 
 app.use(express.json());
@@ -71,16 +74,16 @@ app.use((req, res, next) => {
 });
 
 import authRouter from "./routes/auth.js";
-app.use("/auth", authRouter);
+app.use("/auth", unwrap(authRouter));
 
 import meRouter from "./routes/me.js";
-app.use("/api", meRouter);
+app.use("/api", unwrap(meRouter));
 
 import commentsRouter from "./routes/comments.js";
-app.use("/api", commentsRouter);
+app.use("/api", unwrap(commentsRouter));
 
 import messagesRouter from "./routes/messages.js";
-app.use("/api", messagesRouter);
+app.use("/api", unwrap(messagesRouter));
 
 
 app.get("/", (_req, res) => {
